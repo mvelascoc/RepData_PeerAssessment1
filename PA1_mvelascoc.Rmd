@@ -1,0 +1,241 @@
+# Reproducible Research: Peer Assessment 1
+
+Work by mvelascoc (2014/08/10), avaliable in [https://github.com/mvelascoc/RepData_PeerAssessment1](https://github.com/mvelascoc/RepData_PeerAssessment1)
+
+## Loading and preprocessing the data
+```{r}
+  ## Read de complete file
+  file <- "activity.csv"
+  data <- read.csv(file, header = TRUE)
+  ## ignore incomplete data
+  good <- complete.cases(data[,1])
+  subdata <- data[good,]
+  ## use date as factor to separate the data. This creates a list in which
+    ## data from each day is separated
+  stepsByDay <- split(subdata, subdata$date)
+```
+
+
+## What is mean total number of steps taken per day?
+Data to be processed is the sum of the recorded steps each day. I create a table with this data.
+Note that the NA values were taken before calculating values requieres, but the days with 0 values were not. **I do not consider 0 to be a missing value** in this exercise: person could be asleep all day or in bed, I have no information to decide its wrong data. I am only taking away NA values.
+
+```{r}
+  ## Calculate the steps recorded per day by adding the steps recorded in each
+    ## interval of the day, and save it in one single vector
+  totalSteps <- data.frame(names(stepsByDay), 0)
+  colnames(totalSteps) <- c("Day", "Total Steps Recorded")
+  for (i in 1:length(stepsByDay)) {
+      dimDay <- dim(stepsByDay[[i]])
+      if (dimDay[1] > 0) {
+         totalStepsDay <- sum(stepsByDay[[i]][,1])
+         totalSteps[i,2] <- totalStepsDay
+      }
+  }
+
+```
+
+Data prepared is shown below:
+
+```{r echo = FALSE}
+  print(totalSteps)
+```
+Now, I calculate the descriptive statistics required.
+```{r}
+## Calculating mean and Median
+  meanSteps <- mean(totalSteps[,2])
+  medianSteps <- median(totalSteps[,2])
+```
+The mean total number of steps taken per day is `meanSteps` and median in `medianSteps`. Its values are shown:
+```{r}
+  print(paste ("Mean (value of meanSteps): ", meanSteps))
+  print(paste ("Median (value of medianSteps): ", medianSteps))
+  
+  hist(totalSteps[,2], main = "Total Steps Recorded By Day", 
+       xlab = "Total Steps Recorded", col = "turquoise4", breaks = 10)
+
+```
+
+## What is the average daily activity pattern?
+
+Daily activity required is the average for each interval. I will again use the prepared list `stepsByDay` that contains activity for each day to create a table.
+
+Again, please note that I am not considering the values 0 as missing values. 
+
+```{r}
+
+  ## take steps from one of the samples
+  intFac <- factor(stepsByDay[[2]][,3], ordered = TRUE)
+  interv <- levels(intFac)
+  meanStepsByRange <- data.frame(interv, 0, 0)
+  colnames(meanStepsByRange) <- c("Range", 
+                                  "Sum Total Steps Recorded", "Average Steps")
+  for (i in 1:length(stepsByDay)) {  ##  for all days
+      dimDay <- dim(stepsByDay[[i]])
+      if (dimDay[1] > 0) {  ## if there is data in this day 
+         dimDay[1]
+         for (j in 1: dimDay[1]) {  ## for all ranges
+            range <-  stepsByDay[[i]][j,3]
+            steps <- stepsByDay[[i]][j,1]
+            meanStepsByRange[meanStepsByRange$Range == range, 2] <- meanStepsByRange[meanStepsByRange$Range == range, 2] + steps    ## I add the steps
+         }
+         
+      }
+  }
+  ## when the adding is over, the average for all days is calculated
+  meanStepsByRange[,3] <- meanStepsByRange[,2] / length(stepsByDay)
+
+
+```
+
+The average pattern for the steps is shown in the following graph
+```{r}
+  ## pattern is now shown in a graph  
+  plot(interv, meanStepsByRange[,3], type = "l", 
+       main = "Average Steps by interval", xlab = "interval", ylab = "steps")
+   
+```
+
+The interval in which the average is the maximum is calculated and printed with
+```{r}
+    maxSteps <- max(meanStepsByRange[,3])
+    index <- which(meanStepsByRange[,3] == maxSteps, arr.ind=TRUE)
+    text <- paste("Maximum value is ", maxSteps, 
+                  " and its found in the interval ", meanStepsByRange[index,1])
+   print(text)
+```
+
+## Imputing missing values
+
+Since NA values were taken from the initial sample, vector `good` contains values that need to be replaced. I will create a new set of data incluing the mean value for the interval, rounded to next integer, calculated in the last section of the exercise. 
+
+```{r}
+    ## calculate and print number of NA values
+    goodValues <- as.numeric(!good)
+    totalNAs <- sum(goodValues)
+    text <- paste ("Number of NA data fields is ", totalNAs)
+    print(text)
+
+    ## create a new vector in which NA data is replaced by average in the
+    ## same interval
+    dataWithNA <- data
+    for (k in 1:dim(data)[1]){
+        if (!(good[k])){  ## has a NA value
+            index <- which(meanStepsByRange[,1] == data[k,3], arr.ind=TRUE)
+            dataWithNA[k,1] <- round(meanStepsByRange[index,3])
+        }
+    }
+
+  ## use date as factor to separate the data. This creates a list in which
+    ## data from each day is separated, so processing is easier
+  stepsByDayWithNA <- split(dataWithNA, dataWithNA$date)
+
+    ## Now I repeat the same processing to get a histogram 
+## Calculate the steps recorded per day by adding the steps recorded in each
+    ## interval of the day, and save it in one single vector
+  totalSteps2 <- data.frame(names(stepsByDayWithNA), 0)
+  colnames(totalSteps2) <- c("Day", "Total Steps Recorded")
+  for (i in 1:length(stepsByDayWithNA)) {
+      dimDay2 <- dim(stepsByDayWithNA[[i]])
+      if (dimDay2[1] > 0) {
+         totalStepsDay2 <- sum(stepsByDayWithNA[[i]][,1])
+         totalSteps2[i,2] <- totalStepsDay2
+      }
+  }
+
+  meanSteps2 <- mean(totalSteps2[,2])
+  medianSteps2 <- median(totalSteps2[,2])
+
+
+  par(mfrow = c(1,2))
+
+  hist(totalSteps[,2], main = "Total Steps Recorded By Day", 
+       xlab = "Total Steps Recorded", col = "turquoise4", breaks = 10)
+
+  hist(totalSteps2[,2], main = "Total Steps Recorded By Day, with NA replaced", 
+       xlab = "Total Steps Recorded", col = "salmon", breaks = 10)
+
+
+  print(paste ("Mean was: ", meanSteps, " and now its ", meanSteps2))
+  print(paste ("Median was: ", medianSteps, " and now its" ,medianSteps2))
+
+
+```
+The value of the mean changes, but the median doesn't. The strategy used to fill the NAs used the mean value of the interval was lower that the mean value. 
+This can also be verified in the histogram change.
+
+## Are there differences in activity patterns between weekdays and weekends?
+
+To answer this question I am using the code used to plot the pattern, whith a change to separete weekdays from weekends. 
+
+```{r}
+
+  ## take steps from one of the samples
+  intFac2 <- factor(stepsByDay[[2]][,3], ordered = TRUE)
+  interv2 <- levels(intFac2)
+  meanStepsByRange2 <- data.frame(interv2, 0, 0, 0, 0)
+  colnames(meanStepsByRange2) <- c("Range",  "Sum_Steps_Recorded_W", "Average_Steps_W", "Sum_Steps_Recorded_WEND", "Average_Steps_WEND")
+  
+  weekDaysNum <- 0   # counters of types of days, to be used to evaluate average
+  weekendDaysNum <- 0
+  Sys.setlocale("LC_TIME", "en_US") #make sure I can compare weekday names
+
+  for (i in 1:length(stepsByDay)) {  ##  for all days
+      dimDay <- dim(stepsByDay[[i]])
+      if (dimDay[1] > 0) {  ## if there is data in this day 
+         
+         for (j in 1: dimDay[1]) {  ## for all ranges
+             day <- strptime(stepsByDay[[i]][j,2], "%Y-%m-%d")
+             dayName <- strftime(day, "%a")
+             range <-  stepsByDay[[i]][j,3]
+             steps <- stepsByDay[[i]][j,1]
+              
+             if (is.element( dayName, c("Sun","Sat"))) { #its a day of weekend
+                weekendDaysNum <- weekendDaysNum + 1
+               meanStepsByRange2[meanStepsByRange2$Range == range, 4] <- meanStepsByRange2[meanStepsByRange2$Range == range, 4] + steps    ## I add the steps
+            } else {  # its a weekday
+                weekDaysNum <- weekDaysNum + 1
+               meanStepsByRange2[meanStepsByRange2$Range == range, 2] <- meanStepsByRange2[meanStepsByRange2$Range == range, 2] + steps    ## I add the steps
+
+            }
+            
+         }
+         
+      }
+  }
+  ## when the adding is over, the average for all days is calculated
+  meanStepsByRange2[,5] <- meanStepsByRange2[,4] / weekendDaysNum
+  meanStepsByRange2[,3] <- meanStepsByRange2[,2] / weekDaysNum
+
+```
+
+The average pattern for the steps for Weekdays and Weekend days is shown in the following graph
+```{r}
+  ## pattern is now shown in a graph  
+    par(mfrow = c(1,2))
+    plot(interv2, meanStepsByRange2[,5], type = "l", 
+    main = "Average Steps by interval-Weekend", xlab = "interval", ylab = "steps")
+    plot(interv2, meanStepsByRange2[,3], type = "l", 
+    main = "Average Steps by interval-Week", xlab = "interval", ylab = "steps")
+```
+
+In order to compare them easily, the averages are plotted togheter and a predictor is included
+
+```{r}
+
+    loWEND <- loess(meanStepsByRange2[,5]~interv2)
+    loW <- loess(meanStepsByRange2[,3]~interv2)
+    
+    plot(interv2, meanStepsByRange2[,5], type = "l", col='red',
+    main = "Average Steps by Interval", xlab = "interval", ylab = "steps")
+    
+    lines(interv2, predict(loWEND), col='red', lwd=4, type="l")
+    lines(interv2, predict(loW), col='blue', lwd=4, type="l")
+    lines(interv2, meanStepsByRange2[,3], type= "l", col="blue")
+      
+    legend(x="topright", legend=c("Weekend", "Weekdays"), lwd=2,
+             col=c("red", "blue"))
+
+```
+Both graphics shows that there is a significant difference in the pattern for weekdays and weekends.   
+Weekdends include a significant peak around interval 700 but with more activity during the whole day and centered in the 1500 interval. Week days have a peak that starts earlier, is also around 700 interval but has a significantly lower value though out the day.
